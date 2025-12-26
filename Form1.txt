@@ -1,0 +1,79 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Data.SqlClient;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
+namespace WindowsFormsApp1
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void LoadDataToGrid(string query, SqlParameter[] parameters = null, string tableName = "Results")
+        {
+            try
+            {
+                using (SqlConnection con = new SqlConnection(Program.conStr))
+                {
+                    con.Open();
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        if (parameters != null)
+                            cmd.Parameters.AddRange(parameters);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            DataTable table = new DataTable(tableName);
+                            table.Load(reader);
+                            table_gv.DataSource = table;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}\n\nЗапрос:\n{query}");
+            }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            string query = @"
+                SELECT dbo.Лекарства.Наименование, dbo.Поставки.Количество - dbo.Продажи.Количество AS Остаток FROM dbo.Лекарства INNER JOIN
+                dbo.Поставки ON dbo.Лекарства.[Номер лекарства] = dbo.Поставки.[Номер лекарства] INNER JOIN
+                dbo.Продажи ON dbo.Лекарства.[Номер лекарства] = dbo.Продажи.[Номер лекарства] GROUP BY dbo.Лекарства.Наименование, dbo.Поставки.Количество - dbo.Продажи.Количество";
+            LoadDataToGrid(query);
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            string query = @"
+                SELECT dbo.Поставщики.Название AS [Наименование поставщика], dbo.Лекарства.Наименование AS [Наименование лекарства] FROM dbo.Лекарства INNER JOIN
+                         dbo.Поставки ON dbo.Лекарства.[Номер лекарства] = dbo.Поставки.[Номер лекарства] INNER JOIN
+                         dbo.Поставщики ON dbo.Поставки.[Номер поставщика] = dbo.Поставщики.[Номер поставщика] WHERE (dbo.Поставщики.Название = @SupplierName)";
+
+            SqlParameter param = new SqlParameter("@SupplierName", SqlDbType.NVarChar)
+            {
+                Value = textBox1.Text.Trim()
+            };
+
+            LoadDataToGrid(query, new[] { param });
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            string query = @"SELECT TOP (3) dbo.Лекарства.Наименование, dbo.Продажи.Количество FROM dbo.Лекарства INNER JOIN dbo.Продажи ON dbo.Лекарства.[Номер лекарства] = dbo.Продажи.[Номер лекарства] ORDER BY dbo.Продажи.Количество DESC";
+            LoadDataToGrid(query);
+        }
+    }
+}
